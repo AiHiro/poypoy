@@ -97,7 +97,7 @@
         customerId,
       };
       const body = JSON.stringify(bodyParameters);
-      const paymentResponse = await fetch('https://sandbox.web.squarecdn.com/v1/square.js/card', {
+      const paymentResponse = await fetch('/card', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
