@@ -1,10 +1,244 @@
+<!-- 会員登録ウィンドウ -->
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Index Page</title>
-    <h3>Index Page</h3>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <title>会員登録ページ<title> -->
+    <!-- js -->
+    <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
+    <!-- <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script> -->
+    <!-- <script src="//code.jquery.com/jquery-1.11.1.min.js"></script> -->
+    <!-- css -->
+    <!-- <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css"> -->
+    <!-- bootstrap-datepickerを読み込む -->
+    <!-- <link id="bs-css" href="https://netdna.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet">
+    <link id="bsdp-css" href="https://unpkg.com/bootstrap-datepicker@1.9.0/dist/css/bootstrap-datepicker3.min.css" rel="stylesheet"> -->
   </head>
   <body>
-    <div></div>
+    <div class="container">
+      <div class="row">
+        <form id="payment-form">
+          <input
+            id="customer-input"
+            type="text"
+            aria-required="true"
+            aria-label="Customer ID"
+            required="required"
+            placeholder="Customer ID"
+            name="customerId"
+          />
+          <div id="card-container" style="margin-top: 0"></div>
+          <button id="card-button" type="button">Store Card</button>
+        </form>
+        <div id="payment-status-container" class="store-card-message"></div>
+
+      </div>
+      <div class="row">
+        
+        <form>
+          <!-- 顧客情報の作成 -->
+          <div class="mb-3">
+            <label for="email_address" class="form-label">Email address</label>
+            <input type="email" class="form-control" id="email_address" aria-describedby="emailHelp">
+            <div id="emailHelp" class="form-text">We'll never share your email with anyone else.</div>
+          </div>
+          <div class="mb-3">
+            <label for="phone_number" class="form-label">電話番号(ハイフンなし)</label>
+            <input class="form-control" id="phone_number">
+          </div>
+          <div class="col-auto">
+            <label for="family_name" class="form-label">姓</label>
+            <input class="form-control" id="family_name">
+            <label for="given_name" class="form-label">名</label>
+            <input class="form-control" id="given_name">
+          </div>
+          <button type="submit" class="btn btn-primary" onclick="createCustomer();">Submit</button>
+        </form>
+
+      </div>
+      <div class="row">
+        <!-- サブスクリプションの作成 -->
+        <!-- <form>
+          <div class="mb-3">
+            <label for="exampleInputEmail1" class="form-label">Email address</label>
+            <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
+            <div id="emailHelp" class="form-text">We'll never share your email with anyone else.</div>
+          </div>
+          <div class="mb-3">
+            <label for="exampleInputPassword1" class="form-label">Password</label>
+            <input type="password" class="form-control" id="exampleInputPassword1">
+          </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="exampleCheck1">
+            <label class="form-check-label" for="exampleCheck1">Check me out</label>
+          </div>
+          <button type="submit" class="btn btn-primary">Submit</button>
+        </form> -->
+      </div>
+    </div>
+    <?!= HtmlService.createHtmlOutputFromFile('squarejs').getContent(); ?>
+      <!-- Configure the Web Payments SDK and Card payment method -->
+
+  <script type="text/javascript">
+    const appId = 'sandbox-sq0idb-432MlAn7iIHBlyy3gADCeA';
+    const locationId = 'LFKJAKESC0YCK';
+
+    async function initializeCard(payments) {
+      const card = await payments.card();
+      await card.attach('#card-container'); 
+      return card; 
+    }
+
+    async function storeCard(token, customerId) {
+      const bodyParameters = {
+        locationId,
+        sourceId: token,
+        customerId,
+      };
+      const body = JSON.stringify(bodyParameters);
+      const paymentResponse = await fetch('https://sandbox.web.squarecdn.com/v1/square.js/card', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
+
+      if (paymentResponse.ok) {
+        // console.log("成功");
+        return paymentResponse.json();
+      }else{
+        // console.log("失敗");
+      }
+
+      const errorBody = await paymentResponse.text();
+      throw new Error(errorBody);
+    }
+
+    // Call this function to send a payment token, buyer name, and other details
+    // to the project server code so that a payment can be created with 
+    // Payments API
+    async function createPayment(token) {
+      const body = JSON.stringify({
+        locationId,
+        sourceId: token,
+      });
+      const paymentResponse = await fetch('/payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
+      if (paymentResponse.ok) {
+        return paymentResponse.json();
+      }
+      const errorBody = await paymentResponse.text();
+      throw new Error(errorBody);
+    }
+
+    // This function tokenizes a payment method. 
+    // The ‘error’ thrown from this async function denotes a failed tokenization,
+    // which is due to buyer error (such as an expired card). It is up to the
+    // developer to handle the error and provide the buyer the chance to fix
+    // their mistakes.
+    async function tokenize(paymentMethod) {
+      const tokenResult = await paymentMethod.tokenize();
+      if (tokenResult.status === 'OK') {
+        return tokenResult.token;
+      } else {
+        let errorMessage = `Tokenization failed-status: ${tokenResult.status}`;
+        if (tokenResult.errors) {
+          errorMessage += ` and errors: ${JSON.stringify(
+            tokenResult.errors
+          )}`;
+        }
+        throw new Error(errorMessage);
+      }
+    }
+
+    // Helper method for displaying the Payment Status on the screen.
+    // status is either SUCCESS or FAILURE;
+    function displayPaymentResults(status) {
+      const statusContainer = document.getElementById(
+        'payment-status-container'
+      );
+      if (status === 'SUCCESS') {
+        statusContainer.classList.remove('is-failure');
+        statusContainer.classList.add('is-success');
+      } else {
+        statusContainer.classList.remove('is-success');
+        statusContainer.classList.add('is-failure');
+      }
+
+      statusContainer.style.visibility = 'visible';
+    }    
+
+
+    document.addEventListener('DOMContentLoaded', async function () {
+      if (!window.Square) {
+        throw new Error('Square.js failed to load properly');
+      }
+      const payments = window.Square.payments(appId, locationId);
+      let card;
+      try {
+        card = await initializeCard(payments);
+      } catch (e) {
+        console.error('Initializing Card failed', e);
+        return;
+      }
+
+       async function handleStoreCardMethodSubmission(
+         event, 
+         paymentMethod,
+         // Add the customer ID.
+        customerId,
+        ) {
+        event.preventDefault();
+
+        try {
+          // disable the submit button as we await tokenization and make a
+          // payment request.
+          cardButton.disabled = true;
+          const token = await tokenize(paymentMethod);
+        
+          const storeCardResults = await storeCard(
+            token,
+            customerId,
+          );
+
+          // const paymentResults = await createPayment(token);
+
+          displayPaymentResults('SUCCESS');
+
+          console.debug('Payment Success', paymentResults);
+        } catch (e) {
+          cardButton.disabled = false;
+          displayPaymentResults('FAILURE');
+          console.error(e.message);
+        }
+      }
+
+      const cardButton = document.getElementById('card-button');
+      cardButton.addEventListener('click', async function (event) {
+        const textInput = document.getElementById('customer-input');
+        if (!textInput.reportValidity()) {
+          return;
+        }
+        const customerId = textInput.value;
+        // Add the `handleStoreCardMethodSubmission` method.
+        handleStoreCardMethodSubmission(event, card, customerId);
+        // await handlePaymentMethodSubmission(event, card);
+      }
+      );
+    });
+
+
+
+
+  </script>
+
   </body>
 </html>
+
